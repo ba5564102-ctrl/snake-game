@@ -1,7 +1,478 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
+  <meta charset="UTF-8"<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>لعبة الدودة الفيزيائية - العالم المفتوح اللا نهائي</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #040711;
+      color: #f1f5f9;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+      position: relative;
+    }
+    canvas { width: 100%; height: 100%; display: block; touch-action: none; }
+    .top-hud {
+      position: fixed; top: 12px; left: 16px; right: 16px; z-index: 10;
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+      gap: 10px; pointer-events: none;
+    }
+    .panel {
+      background: rgba(15, 23, 42, 0.82); backdrop-filter: blur(10px);
+      border: 1px solid rgba(51, 65, 85, 0.85); border-radius: 16px;
+      padding: 8px 16px; display: flex; align-items: center; gap: 12px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.45); pointer-events: auto;
+    }
+    .brand-title { font-size: 1.05rem; font-weight: 800; color: #34d399; }
+    .brand-sub { font-size: 0.72rem; color: #94a3b8; display: flex; gap: 10px; align-items: center; }
+    .coords { color: #22d3ee; font-family: monospace; direction: ltr; }
+    .stat-box { display: flex; flex-direction: column; align-items: center; min-width: 58px; }
+    .stat-label { font-size: 0.68rem; color: #94a3b8; }
+    .stat-val { font-size: 1.15rem; font-weight: 800; color: #34d399; }
+    .stat-val.amber { color: #fbbf24; }
+    .stat-val.cyan { color: #22d3ee; }
+    .divider { width: 1px; height: 28px; background: #1e293b; }
+    .btn {
+      background: #1e293b; color: #f1f5f9; border: 1px solid #334155;
+      padding: 6px 11px; border-radius: 10px; font-size: 0.75rem; font-weight: 700;
+      cursor: pointer; transition: background 0.15s;
+    }
+    .btn:hover { background: #334155; }
+    .btn-emerald {
+      background: rgba(16, 185, 129, 0.18); border-color: rgba(16, 185, 129, 0.5); color: #6ee7b7;
+    }
+    .boost-wrap { display: flex; align-items: center; gap: 8px; }
+    .boost-label { font-size: 0.75rem; color: #67e8f9; font-weight: 700; }
+    .boost-track { width: 96px; height: 9px; background: #1e293b; border-radius: 999px; overflow: hidden; }
+    .boost-fill { height: 100%; width: 100%; background: linear-gradient(90deg, #34d399, #22d3ee); }
+    .combo-badge {
+      background: rgba(245, 158, 11, 0.2); border: 1px solid rgba(251, 191, 36, 0.55);
+      color: #fde68a; font-size: 0.75rem; font-weight: 800; padding: 3px 10px; border-radius: 999px;
+    }
+    .bottom-hud {
+      position: fixed; bottom: 16px; left: 20px; right: 20px; z-index: 10;
+      display: flex; align-items: flex-end; justify-content: space-between; pointer-events: none;
+    }
+    .boost-action {
+      pointer-events: auto; display: flex; flex-direction: column; align-items: center; gap: 6px;
+    }
+    .boost-circle {
+      width: 88px; height: 88px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(6, 182, 212, 0.32), rgba(16, 185, 129, 0.2));
+      border: 2px solid rgba(34, 211, 238, 0.65); color: #67e8f9;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 0.8rem; cursor: pointer;
+      box-shadow: 0 8px 25px rgba(6, 182, 212, 0.25);
+    }
+    .boost-circle:active { transform: scale(0.94); }
+    .joy-wrap {
+      pointer-events: auto; display: flex; flex-direction: column; align-items: center; gap: 6px;
+    }
+    .joystick-base {
+      width: 132px; height: 132px; border-radius: 50%;
+      border: 2px solid rgba(16, 185, 129, 0.45);
+      background: radial-gradient(circle, rgba(30, 41, 59, 0.78) 0%, rgba(15, 23, 42, 0.92) 100%);
+      box-shadow: inset 0 0 20px rgba(16, 185, 129, 0.22), 0 8px 28px rgba(0, 0, 0, 0.6);
+      position: relative; display: flex; align-items: center; justify-content: center;
+      touch-action: none; cursor: grab;
+    }
+    .joystick-knob {
+      width: 52px; height: 52px; border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #34d399 0%, #059669 70%, #065f46 100%);
+      border: 2px solid rgba(255, 255, 255, 0.45);
+      box-shadow: 0 4px 16px rgba(16, 185, 129, 0.6);
+      pointer-events: none; transition: transform 0.03s linear;
+    }
+    .hint-tag {
+      font-size: 0.72rem; color: #34d399; font-weight: 700;
+      background: rgba(15, 23, 42, 0.8); padding: 2px 10px; border-radius: 999px; border: 1px solid #1e293b;
+    }
+    .overlay {
+      position: fixed; inset: 0; background: rgba(4, 7, 17, 0.82); backdrop-filter: blur(8px);
+      display: flex; align-items: center; justify-content: center; z-index: 30;
+    }
+    .modal {
+      background: #0f172a; border: 1px solid #1e293b; border-radius: 24px;
+      padding: 30px; max-width: 400px; width: 90%; text-align: center;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
+    }
+    .modal h2 { font-size: 1.8rem; color: #34d399; margin-bottom: 8px; }
+    .modal p { font-size: 0.92rem; color: #cbd5e1; margin-bottom: 22px; }
+    .btn-play {
+      background: linear-gradient(90deg, #10b981, #14b8a6); color: #040711;
+      border: none; padding: 12px 30px; border-radius: 12px; font-size: 1rem; font-weight: 800; cursor: pointer;
+    }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+
+  <header class="top-hud">
+    <div class="panel">
+      <span style="font-size:1.7rem">🐍</span>
+      <div>
+        <div class="brand-title">الدودة الفيزيائية — عالم مفتوح لا نهائي</div>
+        <div class="brand-sub">
+          <span>بدون جدران • كاميرا تتبع ذكية</span>
+          <span id="coordsDisplay" class="coords">(X: 0, Y: 0)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="stat-box"><span class="stat-label">النتيجة</span><span id="scoreDisplay" class="stat-val">0</span></div>
+      <div class="divider"></div>
+      <div class="stat-box"><span class="stat-label">أعلى نتيجة</span><span id="highScoreDisplay" class="stat-val amber">0</span></div>
+      <div class="divider"></div>
+      <div class="stat-box"><span class="stat-label">الطول</span><span id="lengthDisplay" class="stat-val cyan">18</span></div>
+    </div>
+
+    <div class="panel">
+      <div class="boost-wrap">
+        <span class="boost-label">⚡ الدفع</span>
+        <div class="boost-track"><div id="boostBar" class="boost-fill"></div></div>
+      </div>
+      <div id="comboBadge" class="combo-badge hidden">x2 مضاعف!</div>
+      <button id="mouseModeBtn" type="button" class="btn btn-emerald">🖱️ توجيه بالماوس: مفعل</button>
+      <button id="muteBtn" type="button" class="btn">🔊 الصوت</button>
+      <button id="pauseBtn" type="button" class="btn">إيقاف مؤقت</button>
+      <button id="restartBtn" type="button" class="btn" style="color:#34d399">إعادة ↻</button>
+    </div>
+  </header>
+
+  <footer class="bottom-hud">
+    <div class="boost-action">
+      <button id="boostBtn" type="button" class="boost-circle">
+        <span style="font-size:1.6rem">⚡</span>
+        <span>اندفاع</span>
+      </button>
+      <span class="hint-tag">مسافة / نقرة ماوس</span>
+    </div>
+
+    <div class="joy-wrap">
+      <div id="joystickZone" class="joystick-base">
+        <div id="joystickKnob" class="joystick-knob"></div>
+      </div>
+      <span class="hint-tag">جير تحكم 360°</span>
+    </div>
+  </footer>
+
+  <div id="overlay" class="overlay hidden">
+    <div class="modal">
+      <h2 id="overlayTitle">متوقف مؤقتاً</h2>
+      <p id="overlayMessage">العالم المفتوح بانتظارك لاستئناف اللعب</p>
+      <button id="overlayActionBtn" type="button" class="btn-play">العب مرة أخرى</button>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const scoreDisplay = document.getElementById('scoreDisplay');
+    const highScoreDisplay = document.getElementById('highScoreDisplay');
+    const lengthDisplay = document.getElementById('lengthDisplay');
+    const coordsDisplay = document.getElementById('coordsDisplay');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const restartBtn = document.getElementById('restartBtn');
+    const muteBtn = document.getElementById('muteBtn');
+    const mouseModeBtn = document.getElementById('mouseModeBtn');
+    const boostBtn = document.getElementById('boostBtn');
+    const boostBar = document.getElementById('boostBar');
+    const comboBadge = document.getElementById('comboBadge');
+    const joystickZone = document.getElementById('joystickZone');
+    const joystickKnob = document.getElementById('joystickKnob');
+    const overlay = document.getElementById('overlay');
+    const overlayTitle = document.getElementById('overlayTitle');
+    const overlayMessage = document.getElementById('overlayMessage');
+    const overlayActionBtn = document.getElementById('overlayActionBtn');
+
+    let viewWidth = window.innerWidth, viewHeight = window.innerHeight;
+    let camX = 0, camY = 0, camZoom = 1;
+    let snake = [], orbs = [], particles = [], shockwaves = [], nebulae = [];
+    const segmentSpacing = 9, MAX_ORBS = 85, SPAWN_RADIUS = 1800, DESPAWN_RADIUS = 2400;
+    let baseRadius = 13, headAngle = -0.78, targetAngle = -0.78, angularVelocity = 0;
+    let boostEnergy = 100, isBoosting = false, mouseFollowEnabled = true;
+    let score = 0, highScore = 0, comboCount = 1, comboTimer = 0;
+    let isPaused = false, isGameOver = false, isMuted = false, lastTime = 0, elapsedTime = 0, audioCtx = null;
+    const keys = { left: false, right: false, up: false, down: false };
+
+    try { highScore = parseInt(localStorage.getItem('snakeHighScore') || '0', 10) || 0; } catch (e) {}
+    highScoreDisplay.textContent = String(highScore);
+
+    function playSound(f1, f2, dur, type, gVal) {
+      if (isMuted) return;
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const now = audioCtx.currentTime, osc = audioCtx.createOscillator(), g = audioCtx.createGain();
+        osc.type = type || 'sine';
+        osc.frequency.setValueAtTime(f1, now);
+        osc.frequency.exponentialRampToValueAtTime(Math.max(20, f2), now + dur);
+        g.gain.setValueAtTime(gVal || 0.09, now);
+        g.gain.exponentialRampToValueAtTime(0.001, now + dur);
+        osc.connect(g); g.connect(audioCtx.destination);
+        osc.start(now); osc.stop(now + dur);
+      } catch (e) {}
+    }
+
+    function spawnOrbAround(cx, cy, minDist, maxDist, forceGolden) {
+      const a = Math.random() * Math.PI * 2;
+      const d = minDist + Math.random() * (maxDist - minDist);
+      const golden = forceGolden !== undefined ? forceGolden : (Math.random() < 0.16);
+      const superOrb = !golden && Math.random() < 0.06;
+      const hues = [150, 185, 330, 270, 200, 45];
+      return {
+        x: cx + Math.cos(a) * d,
+        y: cy + Math.sin(a) * d,
+        vx: (Math.random() - 0.5) * 0.55,
+        vy: (Math.random() - 0.5) * 0.55,
+        baseR: superOrb ? 14 : (golden ? 10.5 : 6.8),
+        hue: golden ? 45 : (superOrb ? 290 : hues[Math.floor(Math.random() * hues.length)]),
+        golden: golden || superOrb,
+        points: superOrb ? 60 : (golden ? 30 : 10),
+        growth: superOrb ? 6 : (golden ? 3 : 1),
+        phase: Math.random() * Math.PI * 2
+      };
+    }
+
+    function createBurst(x, y, hue, count) {
+      for (let i = 0; i < count; i++) {
+        const a = Math.random() * Math.PI * 2, s = Math.random() * 5 + 1.4;
+        particles.push({ x, y, vx: Math.cos(a)*s, vy: Math.sin(a)*s, r: Math.random()*3.2+1.5, hue, alpha: 1, decay: 0.025 });
+      }
+      shockwaves.push({ x, y, r: 5, maxR: 54, hue, alpha: 0.9 });
+    }
+
+    function initGame() {
+      headAngle = -0.78; targetAngle = headAngle; angularVelocity = 0;
+      snake = [];
+      for (let i = 0; i < 18; i++) {
+        snake.push({ x: -Math.cos(headAngle)*i*segmentSpacing, y: -Math.sin(headAngle)*i*segmentSpacing, angle: headAngle });
+      }
+      camX = 0; camY = 0; camZoom = 1;
+      orbs = [];
+      for (let i = 0; i < MAX_ORBS; i++) orbs.push(spawnOrbAround(0, 0, 80, SPAWN_RADIUS, i < 8));
+      nebulae = [];
+      for (let i = 0; i < 18; i++) {
+        nebulae.push({ x: (Math.random()-0.5)*3200, y: (Math.random()-0.5)*3200, r: 180+Math.random()*240, hue: [160,195,260,320][i%4] });
+      }
+      particles = []; shockwaves = []; score = 0; boostEnergy = 100; comboCount = 1; comboTimer = 0;
+      isPaused = false; isGameOver = false;
+      pauseBtn.textContent = 'إيقاف مؤقت'; scoreDisplay.textContent = '0'; lengthDisplay.textContent = String(snake.length);
+      comboBadge.classList.add('hidden'); overlay.classList.add('hidden');
+    }
+
+    function resizeCanvas() {
+      viewWidth = window.innerWidth; viewHeight = window.innerHeight;
+      canvas.width = viewWidth; canvas.height = viewHeight;
+    }
+
+    function updatePhysics(dt) {
+      if (isPaused || isGameOver) return;
+      elapsedTime += dt;
+      if (comboTimer > 0) {
+        comboTimer -= dt;
+        if (comboTimer <= 0) { comboCount = 1; comboBadge.classList.add('hidden'); }
+      }
+      const kx = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
+      const ky = (keys.down ? 1 : 0) - (keys.up ? 1 : 0);
+      if (kx !== 0 || ky !== 0) targetAngle = Math.atan2(ky, kx);
+
+      let diff = targetAngle - headAngle;
+      while (diff > Math.PI) diff -= Math.PI * 2;
+      while (diff < -Math.PI) diff += Math.PI * 2;
+      const desiredOmega = Math.max(-6.4, Math.min(6.4, diff * 10));
+      angularVelocity += (desiredOmega - angularVelocity) * Math.min(1, dt * 16);
+      headAngle += angularVelocity * dt;
+
+      const activeBoost = isBoosting && boostEnergy > 3;
+      if (activeBoost) {
+        boostEnergy = Math.max(0, boostEnergy - 32 * dt);
+        if (Math.random() < 0.7) {
+          const tail = snake[snake.length - 1];
+          particles.push({ x: tail.x, y: tail.y, vx: -Math.cos(headAngle)*2, vy: -Math.sin(headAngle)*2, r: 2.5, hue: 185, alpha: 0.85, decay: 0.045 });
+        }
+      } else {
+        boostEnergy = Math.min(100, boostEnergy + 22 * dt);
+      }
+      boostBar.style.width = boostEnergy.toFixed(0) + '%';
+
+      const speed = 245 * (activeBoost ? 1.75 : 1.0);
+      const moveAngle = headAngle + Math.sin(elapsedTime * 8.5) * 0.13;
+      const head = snake[0];
+      head.x += Math.cos(moveAngle) * speed * dt;
+      head.y += Math.sin(moveAngle) * speed * dt;
+      baseRadius = Math.min(22, 12.5 + Math.sqrt(snake.length) * 0.45);
+
+      for (let i = 1; i < snake.length; i++) {
+        const prev = snake[i - 1], curr = snake[i];
+        const a = Math.atan2(prev.y - curr.y, prev.x - curr.x);
+        const ripple = Math.sin(elapsedTime * 10 - i * 0.42) * 0.12;
+        curr.x = prev.x - Math.cos(a) * segmentSpacing - Math.sin(a) * ripple;
+        curr.y = prev.y - Math.sin(a) * segmentSpacing + Math.cos(a) * ripple;
+      }
+
+      const lookAhead = activeBoost ? 55 : 32;
+      camX += (head.x + Math.cos(headAngle)*lookAhead - camX) * Math.min(1, dt * 8.5);
+      camY += (head.y + Math.sin(headAngle)*lookAhead - camY) * Math.min(1, dt * 8.5);
+      const desiredZoom = activeBoost ? 0.88 : Math.max(0.78, 1 - (snake.length - 18) * 0.0012);
+      camZoom += (desiredZoom - camZoom) * Math.min(1, dt * 4);
+      coordsDisplay.textContent = '(X: ' + Math.round(head.x / 10) + ', Y: ' + Math.round(-head.y / 10) + ')';
+
+      for (let i = orbs.length - 1; i >= 0; i--) {
+        const orb = orbs[i]; orb.phase += dt * 4.2; orb.x += orb.vx; orb.y += orb.vy;
+        const dx = head.x - orb.x, dy = head.y - orb.y, dist = Math.hypot(dx, dy);
+        if (dist > DESPAWN_RADIUS) { orbs[i] = spawnOrbAround(head.x, head.y, 600, SPAWN_RADIUS); continue; }
+        const magR = 115 + baseRadius * 2;
+        if (dist < magR && dist > 1) {
+          const pull = Math.pow(1 - dist / magR, 1.3) * 380 * dt;
+          orb.x += (dx / dist) * pull; orb.y += (dy / dist) * pull;
+        }
+        if (dist < baseRadius + orb.baseR + 5) {
+          if (comboTimer > 0) {
+            comboCount = Math.min(8, comboCount + 1);
+            comboBadge.textContent = 'x' + comboCount + ' مضاعف!';
+            comboBadge.classList.remove('hidden');
+          } else comboCount = 1;
+          comboTimer = 3.5;
+          score += orb.points * comboCount;
+          scoreDisplay.textContent = String(score);
+          if (score > highScore) { highScore = score; highScoreDisplay.textContent = String(highScore); try { localStorage.setItem('snakeHighScore', String(highScore)); } catch(e){} }
+          const tail = snake[snake.length - 1];
+          for (let g = 0; g < orb.growth; g++) snake.push({ x: tail.x, y: tail.y });
+          lengthDisplay.textContent = String(snake.length);
+          playSound(orb.golden ? 540 : 420, orb.golden ? 1040 : 760, 0.16, 'triangle', 0.12);
+          createBurst(orb.x, orb.y, orb.hue, orb.golden ? 22 : 14);
+          orbs[i] = spawnOrbAround(head.x, head.y, 450, SPAWN_RADIUS);
+        }
+      }
+
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i]; p.x += p.vx; p.y += p.vy; p.vx *= 0.95; p.vy *= 0.95; p.alpha -= p.decay;
+        if (p.alpha <= 0) particles.splice(i, 1);
+      }
+      for (let i = shockwaves.length - 1; i >= 0; i--) {
+        const sw = shockwaves[i]; sw.r += (sw.maxR - sw.r) * 0.15; sw.alpha -= 0.038;
+        if (sw.alpha <= 0) shockwaves.splice(i, 1);
+      }
+    }
+
+    function renderWorld() {
+      ctx.fillStyle = '#040711'; ctx.fillRect(0, 0, viewWidth, viewHeight);
+      if (!snake.length) return;
+      ctx.save();
+      ctx.translate(viewWidth / 2, viewHeight / 2);
+      ctx.scale(camZoom, camZoom);
+      ctx.translate(-camX, -camY);
+
+      const halfW = (viewWidth / 2) / camZoom + 120, halfH = (viewHeight / 2) / camZoom + 120;
+      const step = 75;
+      const startX = Math.floor((camX - halfW) / step) * step, endX = camX + halfW;
+      const startY = Math.floor((camY - halfH) / step) * step, endY = camY + halfH;
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.06)'; ctx.lineWidth = 1; ctx.beginPath();
+      for (let x = startX; x <= endX; x += step) { ctx.moveTo(x, startY); ctx.lineTo(x, endY); }
+      for (let y = startY; y <= endY; y += step) { ctx.moveTo(startX, y); ctx.lineTo(endX, y); }
+      ctx.stroke();
+
+      for (const sw of shockwaves) {
+        ctx.strokeStyle = 'hsla(' + sw.hue + ', 95%, 65%, ' + sw.alpha.toFixed(2) + ')';
+        ctx.lineWidth = 2.4; ctx.beginPath(); ctx.arc(sw.x, sw.y, sw.r, 0, 6.28); ctx.stroke();
+      }
+      for (const orb of orbs) {
+        if (Math.abs(orb.x - camX) > halfW || Math.abs(orb.y - camY) > halfH) continue;
+        const r = orb.baseR + Math.sin(orb.phase) * 1.9;
+        ctx.fillStyle = 'hsl(' + orb.hue + ', 95%, 62%)';
+        ctx.beginPath(); ctx.arc(orb.x, orb.y, r, 0, 6.28); ctx.fill();
+      }
+      for (const p of particles) {
+        ctx.fillStyle = 'hsla(' + p.hue + ', 95%, 65%, ' + Math.max(0, p.alpha).toFixed(2) + ')';
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.28); ctx.fill();
+      }
+      for (let i = snake.length - 1; i >= 0; i--) {
+        const seg = snake[i];
+        if (Math.abs(seg.x - camX) > halfW || Math.abs(seg.y - camY) > halfH) continue;
+        const r = baseRadius * Math.max(0.32, 1 - i / (snake.length + 6));
+        const hue = (152 + i * 2 + elapsedTime * 28) % 360;
+        ctx.fillStyle = 'hsl(' + hue + ', 88%, ' + (i === 0 ? 58 : (i % 2 === 0 ? 49 : 39)) + '%)';
+        ctx.beginPath(); ctx.arc(seg.x, seg.y, r, 0, 6.28); ctx.fill();
+      }
+      const head = snake[0];
+      ctx.save(); ctx.translate(head.x, head.y); ctx.rotate(headAngle);
+      [-1, 1].forEach(s => {
+        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(baseRadius*0.34, s*baseRadius*0.52, baseRadius*0.34, 0, 6.28); ctx.fill();
+        ctx.fillStyle = '#0f172a'; ctx.beginPath(); ctx.arc(baseRadius*0.34+1.6, s*baseRadius*0.52, baseRadius*0.19, 0, 6.28); ctx.fill();
+      });
+      ctx.restore();
+      ctx.restore();
+    }
+
+    function loop(ts) {
+      if (!lastTime) lastTime = ts;
+      updatePhysics(Math.min(0.05, (ts - lastTime) / 1000));
+      lastTime = ts; renderWorld();
+      requestAnimationFrame(loop);
+    }
+
+    let joyActive = false;
+    function handleJoy(cx, cy) {
+      const r = joystickZone.getBoundingClientRect();
+      const dx = cx - (r.left + r.width/2), dy = cy - (r.top + r.height/2), d = Math.hypot(dx, dy);
+      if (d > 4) targetAngle = Math.atan2(dy, dx);
+      const cd = Math.min(42, d), a = Math.atan2(dy, dx);
+      joystickKnob.style.transform = 'translate(' + (Math.cos(a)*cd).toFixed(1) + 'px,' + (Math.sin(a)*cd).toFixed(1) + 'px)';
+    }
+    joystickZone.addEventListener('pointerdown', e => { joyActive = true; joystickZone.setPointerCapture(e.pointerId); handleJoy(e.clientX, e.clientY); e.stopPropagation(); });
+    joystickZone.addEventListener('pointermove', e => { if (joyActive) handleJoy(e.clientX, e.clientY); });
+    joystickZone.addEventListener('pointerup', () => { joyActive = false; joystickKnob.style.transform = 'translate(0,0)'; });
+
+    canvas.addEventListener('pointermove', e => {
+      if (joyActive || !mouseFollowEnabled || !snake.length) return;
+      const hx = viewWidth / 2 + (snake[0].x - camX) * camZoom;
+      const hy = viewHeight / 2 + (snake[0].y - camY) * camZoom;
+      if (Math.hypot(e.clientX - hx, e.clientY - hy) > 12) targetAngle = Math.atan2(e.clientY - hy, e.clientX - hx);
+    });
+    canvas.addEventListener('pointerdown', e => { if (e.button === 0) isBoosting = true; });
+    window.addEventListener('pointerup', () => isBoosting = false);
+    mouseModeBtn.addEventListener('click', () => {
+      mouseFollowEnabled = !mouseFollowEnabled;
+      mouseModeBtn.textContent = mouseFollowEnabled ? '🖱️ توجيه بالماوس: مفعل' : '🖱️ توجيه بالماوس: متوقف';
+    });
+    boostBtn.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); isBoosting = true; });
+    boostBtn.addEventListener('pointerup', () => isBoosting = false);
+    pauseBtn.addEventListener('click', () => { isPaused = !isPaused; overlay.classList.toggle('hidden', !isPaused); });
+    restartBtn.addEventListener('click', initGame);
+    overlayActionBtn.addEventListener('click', () => { isPaused = false; overlay.classList.add('hidden'); });
+    muteBtn.addEventListener('click', () => { isMuted = !isMuted; muteBtn.textContent = isMuted ? '🔇 صامت' : '🔊 الصوت'; });
+    window.addEventListener('keydown', e => {
+      if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') keys.up = true;
+      if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') keys.down = true;
+      if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = true;
+      if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = true;
+      if (e.key === ' ' || e.key === 'Shift') isBoosting = true;
+    });
+    window.addEventListener('keyup', e => {
+      if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') keys.up = false;
+      if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') keys.down = false;
+      if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = false;
+      if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = false;
+      if (e.key === ' ' || e.key === 'Shift') isBoosting = false;
+    });
+    window.addEventListener('resize', resizeCanvas);
+    window.onload = () => { resizeCanvas(); initGame(); requestAnimationFrame(loop); };
+  </script>
+</body>
+</html>>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>لعبة الدودة - Snake Game</title>
   <style>
