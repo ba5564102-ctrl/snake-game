@@ -1,7 +1,220 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8"<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>ساحة الـ 100 أفعى - اللعب المشترك</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Tahoma,sans-serif;background:#040711;color:#f1f5f9;width:100vw;height:100vh;overflow:hidden;user-select:none;touch-action:none}
+canvas{width:100%;height:100%;display:block}
+.hud{position:fixed;top:10px;left:12px;right:12px;z-index:10;display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;pointer-events:none}
+.box{background:rgba(15,23,42,.86);border:1px solid #334155;border-radius:14px;padding:6px 12px;display:flex;align-items:center;gap:10px;pointer-events:auto}
+.btn{background:#1e293b;color:#fff;border:1px solid #475569;padding:5px 10px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer}
+.btn-room{background:rgba(99,102,241,.3);border-color:#818cf8;color:#e0e7ff}
+.lb{position:fixed;top:68px;left:12px;z-index:10;width:195px;background:rgba(15,23,42,.8);border:1px solid #334155;border-radius:14px;padding:8px 10px;font-size:11px;pointer-events:none}
+.lb h4{color:#fbbf24;margin-bottom:4px;border-bottom:1px solid #1e293b;padding-bottom:4px}
+.lb ol{list-style:none;display:flex;flex-direction:column;gap:3px}
+.lb li{display:flex;justify-content:space-between}
+.me{color:#34d399;font-weight:800}
+.feed{position:fixed;top:68px;right:12px;z-index:10;display:flex;flex-direction:column;gap:5px;pointer-events:none}
+.toast{background:rgba(16,185,129,.25);border:1px solid #34d399;color:#a7f3d0;padding:5px 10px;border-radius:8px;font-size:11px;font-weight:700}
+.bot-hud{position:fixed;bottom:16px;left:20px;right:20px;z-index:10;display:flex;justify-content:space-between;align-items:flex-end;pointer-events:none}
+.boost{pointer-events:auto;width:82px;height:82px;border-radius:50%;background:rgba(6,182,212,.28);border:2px solid #22d3ee;color:#67e8f9;font-weight:800;cursor:pointer}
+.joy{pointer-events:auto;width:118px;height:118px;border-radius:50%;border:2px solid rgba(16,185,129,.5);background:rgba(15,23,42,.85);position:relative;display:flex;align-items:center;justify-content:center;margin-left:130px;touch-action:none}
+.knob{width:46px;height:46px;border-radius:50%;background:radial-gradient(circle,#34d399,#059669);border:2px solid rgba(255,255,255,.5);pointer-events:none}
+.modal-bg{position:fixed;inset:0;background:rgba(4,7,17,.85);display:flex;align-items:center;justify-content:center;z-index:30}
+.modal{background:#0f172a;border:1px solid #334155;border-radius:20px;padding:22px;max-width:380px;width:92%;text-align:center;display:flex;flex-direction:column;gap:10px}
+.inp{padding:8px 10px;border-radius:8px;border:1px solid #475569;background:#040711;color:#fff;width:100%}
+.hide{display:none!important}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="hud">
+  <div class="box">
+    <b>🐍 ساحة 100 منافس</b>
+    <span id="alive" style="color:#34d399;font-size:12px">100/100</span>
+    <span id="rank" style="color:#fbbf24;font-size:12px">#1</span>
+  </div>
+  <div class="box">
+    <span>النتيجة: <b id="sc" style="color:#34d399">200</b></span>
+    <span>أعلى: <b id="hi" style="color:#fbbf24">0</b></span>
+    <span>الطول: <b id="ln" style="color:#22d3ee">20</b></span>
+  </div>
+  <div class="box">
+    <button id="roomBtn" class="btn btn-room">🌐 الغرفة: <span id="rCode">ARENA-100</span></button>
+    <button id="invBtn" class="btn">🔗 نسخ رابط للأصدقاء</button>
+    <button id="resBtn" class="btn">إعادة ↻</button>
+  </div>
+</div>
+<div class="lb"><h4>🏆 المتصدرون (أكبر 10)</h4><ol id="lbList"></ol></div>
+<div id="feed" class="feed"></div>
+<div class="bot-hud">
+  <button id="bBtn" class="boost">⚡<br>اندفاع</button>
+  <div id="joy" class="joy"><div id="knob" class="knob"></div></div>
+</div>
+<div id="rMod" class="modal-bg hide">
+  <div class="modal">
+    <h3 style="color:#34d399">🌐 دخول عالم مشترك مع الأصدقاء</h3>
+    <input id="pName" class="inp" value="البطل" placeholder="اسمك">
+    <input id="rInp" class="inp" value="ARENA-100" dir="ltr" placeholder="كود الغرفة">
+    <button id="saveR" class="btn btn-room" style="padding:10px">حفظ ودخول الساحة</button>
+  </div>
+</div>
+<div id="ov" class="modal-bg hide">
+  <div class="modal">
+    <h2 style="color:#34d399">تحولت إلى حلوى! 🍬</h2>
+    <p id="ovMsg">اصطدمت بأفعى أخرى</p>
+    <button id="rePlay" class="btn btn-room" style="padding:10px">العب مرة أخرى</button>
+  </div>
+</div>
+<script>
+const c=document.getElementById('c'),ctx=c.getContext('2d');
+let W=innerWidth,H=innerHeight,camX=0,camY=0,R=4200,N=100,SP=8.5;
+let me,bots=[],peers={},candies=[],tAng=-0.8,boost=false,score=200,hi=0,over=false,lt=0,el=0,pName='البطل',rCode='ARENA-100',chan=null;
+const myId='u_'+Math.random().toString(36).slice(2,8);
+const NAMES=['صقر الرافدين','أسد نينوى','النمر العربي','البرق','ذئب الصحراء','سلطان الساحة','إعصار النار','الشبح','قناص الحلوى','الكوبرا','فارس الظلام','التنين الذهبي'];
+try{hi=+localStorage.getItem('snkHi100')||0;document.getElementById('hi').textContent=hi}catch(e){}
+function rndPt(m){const r=Math.sqrt(Math.random())*(R-(m||180)),a=Math.random()*6.28;return{x:Math.cos(a)*r,y:Math.sin(a)*r}}
+function mkCandy(x,y,v,rad,h,loot){return{x,y,r:rad||(Math.random()<.15?9:6),v:v||10,g:loot?.65:.25,h:h??[330,45,160,195,280][Math.random()*5|0],loot:!!loot,p:Math.random()*6.28}}
+function mkSnake(id,name,isMe,x,y,len,h){
+  const a=Math.random()*6.28,s=[];
+  for(let i=0;i<len;i++)s.push({x:x-Math.cos(a)*i*SP,y:y-Math.sin(a)*i*SP});
+  return{id,name,isMe,s,a,ta:a,av:0,br:12,gc:0,sc:len*10,h,boost:false,ai:0,dead:false};
+}
+function toast(t){const d=document.createElement('div');d.className='toast';d.textContent=t;feed.prepend(d);setTimeout(()=>d.remove(),3200)}
+function dropCandy(snk,killer){
+  const step=Math.max(1,snk.s.length/26|0);
+  for(let i=0;i<snk.s.length;i+=step)candies.push(mkCandy(snk.s[i].x+(Math.random()-.5)*14,snk.s[i].y+(Math.random()-.5)*14,25,Math.min(14,snk.br*.85),snk.h,true));
+  if(killer===pName||snk.isMe)toast('🍬 تحولت "'+snk.name+'" إلى حلوى على يد '+killer+'!');
+}
+function spawnBot(i){const p=rndPt(350);return mkSnake('b'+i,NAMES[i%NAMES.length]+' #'+(i+1),false,p.x,p.y,14+(i%18),(i*37)%360)}
+function init(){
+  const p=rndPt(800);me=mkSnake('me',pName,true,p.x,p.y,20,152);tAng=me.a;camX=p.x;camY=p.y;
+  bots=[];for(let i=0;i<N-1;i++)bots.push(spawnBot(i));
+  candies=[];for(let i=0;i<360;i++){const cp=rndPt(100);candies.push(mkCandy(cp.x,cp.y))}
+  score=200;over=false;document.getElementById('ov').classList.add('hide');
+}
+function stepSnk(snk,dt){
+  let d=snk.ta-snk.a;while(d>Math.PI)d-=6.283;while(d<-Math.PI)d+=6.283;
+  snk.av+=(Math.max(-6,Math.min(6,d*9.5))-snk.av)*Math.min(1,dt*15);snk.a+=snk.av*dt;
+  const spd=225*(snk.boost?1.7:1),ma=snk.a+Math.sin(el*8.5+snk.h)*.11,h=snk.s[0];
+  h.x+=Math.cos(ma)*spd*dt;h.y+=Math.sin(ma)*spd*dt;
+  snk.br=Math.min(26,11.5+Math.sqrt(snk.s.length)*.5);
+  for(let i=1;i<snk.s.length;i++){
+    const pr=snk.s[i-1],cu=snk.s[i],a=Math.atan2(pr.y-cu.y,pr.x-cu.x),rp=Math.sin(el*9.5-i*.4)*.16;
+    cu.x=pr.x-Math.cos(a)*SP-Math.sin(a)*rp;cu.y=pr.y-Math.sin(a)*SP+Math.cos(a)*rp;
+  }
+}
+function update(dt){
+  el+=dt;
+  if(me&&!me.dead){
+    me.ta=tAng;me.boost=boost&&me.s.length>12;stepSnk(me,dt);
+    camX+=(me.s[0].x-camX)*Math.min(1,dt*8);camY+=(me.s[0].y-camY)*Math.min(1,dt*8);
+    if(Math.hypot(me.s[0].x,me.s[0].y)>R-me.br){me.dead=over=true;dropCandy(me,'جدار الساحة');document.getElementById('ov').classList.remove('hide')}
+  }
+  const all=[];if(me&&!me.dead)all.push(me);
+  for(const b of bots)if(!b.dead)all.push(b);
+  for(const k in peers)if(peers[k]&&!peers[k].dead)all.push(peers[k]);
+  for(let i=0;i<bots.length;i++){
+    const b=bots[i],bh=b.s[0];b.ai-=dt;
+    if(Math.hypot(bh.x,bh.y)>R-350)b.ta=Math.atan2(-bh.y,-bh.x);
+    else if(b.ai<=0){
+      b.ai=.35+Math.random()*.4;let best=null,bs=-1e9;
+      for(let j=0;j<candies.length;j+=4){const c=candies[j],d=Math.hypot(c.x-bh.x,c.y-bh.y);if(d<480&&(c.loot?450:100)-d>bs){bs=(c.loot?450:100)-d;best=c}}
+      if(best)b.ta=Math.atan2(best.y-bh.y,best.x-bh.x);
+    }
+    stepSnk(b,dt);
+    if(Math.hypot(bh.x,bh.y)>R-b.br){b.dead=true;dropCandy(b,'جدار الساحة');bots[i]=spawnBot(i)}
+  }
+  for(let i=0;i<all.length;i++){
+    const A=all[i];if(A.dead||A.remote)continue;const hA=A.s[0];
+    for(let j=0;j<all.length;j++){
+      if(i===j)continue;const B=all[j];if(B.dead)continue;const hB=B.s[0];
+      if(Math.abs(hA.x-hB.x)>850||Math.abs(hA.y-hB.y)>850)continue;
+      const hd=A.br*.78+B.br*.78;
+      for(let k=0;k<B.s.length;k++){
+        if(Math.hypot(hA.x-B.s[k].x,hA.y-B.s[k].y)<hd){
+          if(k===0&&A.s.length>B.s.length+3)continue;
+          if(A.isMe){A.dead=over=true;dropCandy(A,B.name);document.getElementById('ovMsg').textContent='اصطدمت بـ '+B.name+' — النتيجة: '+score;document.getElementById('ov').classList.remove('hide')}
+          else{A.dead=true;B.sc+=150;dropCandy(A,B.name);const ix=bots.indexOf(A);if(ix>-1)bots[ix]=spawnBot(ix)}
+          break;
+        }
+      }
+      if(A.dead)break;
+    }
+  }
+  for(let i=candies.length-1;i>=0;i--){
+    const cd=candies[i];cd.p+=dt*4.5;
+    for(let s=0;s<all.length;s++){
+      const sn=all[s];if(sn.dead||sn.remote)continue;
+      const h=sn.s[0],dx=h.x-cd.x,dy=h.y-cd.y,d=Math.hypot(dx,dy),mg=sn.isMe?105:55;
+      if(d<mg&&d>1){cd.x+=(dx/d)*280*dt;cd.y+=(dy/d)*280*dt}
+      if(d<sn.br+cd.r+5){
+        sn.sc+=cd.v;sn.gc+=cd.g;while(sn.gc>=1){sn.gc--;const tl=sn.s[sn.s.length-1];sn.s.push({x:tl.x,y:tl.y})}
+        if(sn.isMe){score=sn.sc|0;document.getElementById('sc').textContent=score;document.getElementById('ln').textContent=sn.s.length;if(score>hi){hi=score;document.getElementById('hi').textContent=hi;try{localStorage.setItem('snkHi100',hi)}catch(e){}}}
+        candies.splice(i,1);break;
+      }
+    }
+  }
+  while(candies.length<360){const cp=rndPt(120);candies.push(mkCandy(cp.x,cp.y))}
+  all.sort((a,b)=>b.sc-a.sc);
+  document.getElementById('rank').textContent='#'+(all.findIndex(x=>x.isMe)+1)+'/'+all.length;
+  document.getElementById('alive').textContent=all.length+'/100';
+  let h='';for(let i=0;i<Math.min(10,all.length);i++)h+='<li class="'+(all[i].isMe?'me':'')+'"><span>'+(i+1)+'. '+all[i].name+'</span><span>'+(all[i].sc|0)+'</span></li>';
+  document.getElementById('lbList').innerHTML=h;
+  if(chan&&me)try{chan.postMessage({id:myId,name:pName,s:me.s.slice(0,30),a:me.a,br:me.br,sc:score,h:me.h,dead:me.dead,ts:Date.now()})}catch(e){}
+}
+function drawSnk(sn){
+  if(!sn||sn.dead||!sn.s.length)return;
+  const h=sn.s[0];if(Math.abs(h.x-camX)>W/2+800||Math.abs(h.y-camY)>H/2+800)return;
+  for(let i=sn.s.length-1;i>=0;i--){
+    const g=sn.s[i],r=sn.br*Math.max(.36,1-i/(sn.s.length+8));
+    ctx.fillStyle='hsl('+((sn.h+i*1.8)%360)+',88%,'+(i===0?58:44)+'%)';
+    ctx.beginPath();ctx.arc(g.x,g.y,r,0,6.28);ctx.fill();
+  }
+  ctx.fillStyle=sn.isMe?'#34d399':'#fff';ctx.font='bold 12px Tahoma';ctx.textAlign='center';
+  ctx.fillText(sn.name,h.x,h.y-sn.br-10);
+}
+function render(){
+  ctx.fillStyle='#040711';ctx.fillRect(0,0,W,H);
+  ctx.save();ctx.translate(W/2-camX,H/2-camY);
+  ctx.strokeStyle='#f43f5e';ctx.lineWidth=14;ctx.beginPath();ctx.arc(0,0,R,0,6.28);ctx.stroke();
+  for(const cd of candies){
+    if(Math.abs(cd.x-camX)>W/2+40||Math.abs(cd.y-camY)>H/2+40)continue;
+    ctx.fillStyle='hsl('+cd.h+',95%,62%)';ctx.beginPath();ctx.arc(cd.x,cd.y,cd.r+Math.sin(cd.p)*1.5,0,6.28);ctx.fill();
+  }
+  for(const b of bots)drawSnk(b);
+  for(const k in peers)drawSnk(peers[k]);
+  if(me&&!me.dead)drawSnk(me);
+  ctx.restore();
+}
+function loop(ts){if(!lt)lt=ts;update(Math.min(.05,(ts-lt)/1000));lt=ts;render();requestAnimationFrame(loop)}
+function joinRoom(code){
+  rCode=(code||'ARENA-100').toUpperCase();document.getElementById('rCode').textContent=rCode;
+  try{if(chan)chan.close();chan=new BroadcastChannel('snk100_'+rCode);chan.onmessage=e=>{if(e.data&&e.data.id!==myId)peers[e.data.id]={...e.data,remote:true}}}catch(e){}
+}
+let jAct=false;const joy=document.getElementById('joy'),knob=document.getElementById('knob');
+function mvJoy(cx,cy){const r=joy.getBoundingClientRect(),dx=cx-(r.left+r.width/2),dy=cy-(r.top+r.height/2),d=Math.hypot(dx,dy);if(d>4)tAng=Math.atan2(dy,dx);const cd=Math.min(36,d),a=Math.atan2(dy,dx);knob.style.transform='translate('+(Math.cos(a)*cd).toFixed(1)+'px,'+(Math.sin(a)*cd).toFixed(1)+'px)'}
+joy.onpointerdown=e=>{jAct=true;joy.setPointerCapture(e.pointerId);mvJoy(e.clientX,e.clientY);e.stopPropagation()};
+joy.onpointermove=e=>{if(jAct)mvJoy(e.clientX,e.clientY)};
+joy.onpointerup=()=>{jAct=false;knob.style.transform='translate(0,0)'};
+c.onpointermove=e=>{if(!jAct&&me&&!me.dead)tAng=Math.atan2(e.clientY-H/2,e.clientX-W/2)};
+c.onpointerdown=()=>boost=true;window.onpointerup=()=>boost=false;
+document.getElementById('bBtn').onpointerdown=e=>{e.stopPropagation();boost=true};
+document.getElementById('resBtn').onclick=init;document.getElementById('rePlay').onclick=init;
+document.getElementById('roomBtn').onclick=()=>document.getElementById('rMod').classList.remove('hide');
+document.getElementById('saveR').onclick=()=>{pName=document.getElementById('pName').value||'البطل';joinRoom(document.getElementById('rInp').value);document.getElementById('rMod').classList.add('hide');init()};
+document.getElementById('invBtn').onclick=()=>{const u=location.href.split('#')[0]+'#room='+rCode;try{navigator.clipboard.writeText(u)}catch(e){}toast('🔗 تم نسخ رابط غرفة الأصدقاء: '+rCode)};
+window.onresize=()=>{W=c.width=innerWidth;H=c.height=innerHeight};
+window.onload=()=>{W=c.width=innerWidth;H=c.height=innerHeight;const m=(location.hash||'').match(/room=([^&]+)/i);if(m)rCode=decodeURIComponent(m[1]);joinRoom(rCode);init();requestAnimationFrame(loop)};
+</script>
+</body>
+</html>>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>حرب الأفاعي 100 منافس - ساحة المعركة المشتركة</title>
   <style>
